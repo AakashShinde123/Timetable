@@ -1,0 +1,56 @@
+{
+  "summary": "Iter-12 validated Iter-11 UX changes (Classes redesign, Help walkthrough, Timetable multi-shift selector, Substitutions confirm-all, Members tooltips) and re-validated Teacher Portal scoping at the backend. Teacher scoping endpoints WORK correctly (admin=200, mismatched-email teacher=403, matching-email teacher=200) on both /schedule and /schedule/pdf. Classes, Help, Timetable shift-select and smoke-pages all render cleanly. Two issues persist: (1) Substitutions AlertDialog is still NOT wired (carry-over regression from iter-11 — imports exist but JSX still has bare onClick); (2) Iter-11 spec/test plan references frontend routes that don't exist in App.js (Members at /school/:sid/members and Help at /school/:sid/help — actual routes are /school/:sid/users and top-level /help, and Teacher Portal route is /school/:sid/teacher/:teacherId without /schedule suffix). All actual routes work; only the spec wording is stale.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Substitutions.jsx", "issue": "Iter-11 spec requires AlertDialog around 'Confirm All & Notify' with testids confirm-all-confirm / confirm-all-cancel. AlertDialog* are imported (lines 10-12) but JSX still calls confirmAllAndNotify directly on click (line 109). Reproduced: clicking confirm-all-notify-btn fires the API immediately and shows toast 'Queued 0 substitution(s) · job confirm_48b211f625 · Twilio not configured' with NO dialog. confirm-all-confirm and confirm-all-cancel testids absent from DOM.", "selector": "[data-testid='confirm-all-notify-btn']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Shifts.jsx", "issues": ["React DOM warning: <button> nested inside <button> at Shifts.jsx line 96 / 105 — the outer card is a <button> and contains a child <button> for actions. Causes hydration warning ('In HTML, <button> cannot be a descendant of <button>'). Should change outer card to a <div role=button> or move inner buttons outside the outer button."]}
+    ]
+  },
+  "iter12_verification": {
+    "backend_curl_scoping": {
+      "admin_GET_schedule": "PASS (200)",
+      "teacher_mismatched_email_GET_schedule": "PASS (403)",
+      "teacher_matching_email_GET_schedule": "PASS (200)",
+      "admin_GET_schedule_pdf": "PASS (200)",
+      "teacher_mismatched_email_GET_schedule_pdf": "PASS (403)",
+      "teacher_matching_email_GET_schedule_pdf": "PASS (200)"
+    },
+    "frontend": {
+      "Classes.jsx_loads": "PASS — KPI tiles (43/4/2/1290), filter-shift, filter-section, section-group rendered; UNMAPPED badges visible (43 classes have no facility yet)",
+      "Classes.jsx_modal": "PASS — new-class-btn opens dialog with IDENTITY/LOCATION/OPERATIONS sections, class-standard-input + class-division-input + class-shift-select + class-facility-select all wired, 'Will save as: 11 · Z' live preview works",
+      "Help.jsx_at_/help": "PASS — help-toc + 10 help-step-first-time-setup-{0..9} + 10 help-topic-{*} testids rendered. NOTE: route is top-level /help, NOT /school/:sid/help as spec claimed.",
+      "Timetable.jsx_multi_shift": "PASS — shift-select shows 2 options (07:30 morning + 2nd), switching shift works, activeShiftId state restored from iter-11 fix",
+      "Timetable_orphan_cleanup_button": "NOT FOUND — no orphan-cleanup button in current Timetable.jsx; spec mentions it but it doesn't exist in JSX. Either spec stale or feature dropped.",
+      "Substitutions_AlertDialog": "FAIL (regression) — AlertDialog imported but NOT wrapping the button. confirm-all-confirm + confirm-all-cancel testids absent. Same bug as iter-11.",
+      "Members.jsx_at_/school/{sid}/users": "PASS PARTIAL — new-member-btn opens Add User dialog (email/role inputs present). permissions-matrix only renders when EDITING an existing member (editingId truthy); on this school db.members is empty so matrix not visible in browser. NOTE: route is /users not /members as spec claimed.",
+      "Members_disabled_tooltip": "CODE-VERIFIED ONLY — Members.jsx lines 224-237 wrap each disabled cell in TooltipProvider/Tooltip; perm-disabled-{res}-{a} testid present in source. Not browser-verifiable until at least one member exists for this school.",
+      "Teacher_portal_route": "PASS — frontend route is /school/:schoolId/teacher/:teacherId (NOT /teacher/:tid/schedule). Page loads under SchoolLayout without crash. Backend pytest TestIter6TeacherEmailScoping already covers data scoping.",
+      "Smoke_pages": "PASS — facilities, shifts, activities, attendance all loaded without 'Something went wrong' boundary; only DOM warning on Shifts (nested button)"
+    }
+  },
+  "test_report_links": ["/app/backend/tests/test_iter11.py", "/app/test_reports/pytest/iter11_results.xml"],
+  "action_items": [
+    "STILL OPEN: Wrap the 'Confirm All & Notify' button in /app/frontend/src/pages/Substitutions.jsx (line 109) with AlertDialog. Use AlertDialogTrigger asChild around the existing Button, AlertDialogContent containing AlertDialogTitle 'Confirm All Substitutions?' + AlertDialogDescription, AlertDialogAction[data-testid='confirm-all-confirm'] that calls confirmAllAndNotify, and AlertDialogCancel[data-testid='confirm-all-cancel']. The AlertDialog* imports at lines 10-12 are already present (dead code today).",
+    "Fix Shifts.jsx nested <button> warning: outer .shift-card at line 96 is a <button> containing inner edit/delete <button>s at line 105. Change outer to <div role=button tabIndex=0 onKeyDown=...> OR move inner buttons outside the card.",
+    "Spec hygiene (for next iteration request author): update wording — Help is /help (top-level), Members is /school/:sid/users (not /members), Teacher Portal is /school/:sid/teacher/:teacherId (no /schedule suffix). Backend endpoints retain /schedule and /schedule/pdf suffixes.",
+    "Optional: confirm whether Timetable 'orphan period cleanup' button is still in scope — currently absent from Timetable.jsx. If still required, re-add."
+  ],
+  "critical_code_review_comments": [
+    "Substitutions.jsx — dead AlertDialog imports (lines 10-12) for 2 consecutive iterations is a CI signal: add ESLint rule no-unused-vars to fail builds, and a Playwright smoke that asserts presence of confirm-all-confirm when confirm-all-notify-btn is clicked.",
+    "Shifts.jsx — nested-button is an accessibility bug too (screen readers will skip the inner controls). Same fix as React DOM warning.",
+    "Members.jsx — permissions-matrix is gated on editingId, but the page has no member rows for this seeded school; the new-member dialog also doesn't show the matrix until first save. Consider showing the matrix in Add mode (pre-fill defaults from role) so admins can set perms before save.",
+    "App.js teacher portal route — /school/:schoolId/teacher/:teacherId renders TeacherSchedule which already exists; consider also adding /school/:schoolId/teacher/:teacherId/schedule alias to match URL conventions / direct-share links."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (6/6 scoping curls)", "frontend": "83% (5/6 iter-11 surfaces verified; Substitutions AlertDialog regression carried over from iter-11; Members tooltip code-verified only — no seed members)"},
+  "test_credentials": "Mongo-injected Super Admin user_id=ui-iter12-1779261398126 session_token=tok_iter12_1779261398126; Teacher-MM user session_token=tokmm_1779261416141 (mismatched email teach.mismatch@example.com); Teacher-Match user session_token=tokok_1779261417418 (email pinned to teacher row tch_26ef7894df via PUT /teachers/{tid}). ALL CLEANED UP post-run.",
+  "seed_data_creation": "PUT /api/schools/sch_0df9200b7a/teachers/tch_26ef7894df {email:'teach.match.<ts>@example.com'} — left in place; restore if you want the original empty/different teacher email. No new substitutions, classes, or members created.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Three carry-over items: (1) Substitutions AlertDialog wiring is STILL missing — see action item #1. (2) Members permissions-matrix tooltips are code-verified but never browser-verified in 2 iterations because the seeded school has 0 members — main agent should either seed a sample member or move the matrix into the Add-User flow. (3) Shifts.jsx has a nested-button DOM warning that's been there since at least iter-11. Frontend routes to remember: HELP=/help, MEMBERS=/school/:sid/users, TEACHER PORTAL=/school/:sid/teacher/:teacherId. Twilio remains intentionally blank — confirm-all-notify returns 202 with twilio_configured:false and toast string was fixed in iter-11. The teacher_schedule scoping logic in routers/timetable.py lines 285-302 and 382-404 is confirmed working end-to-end via curl in this run.",
+  "rca of the issue": "Substitutions AlertDialog RCA (carried from iter-11): The author of iter-11 added the AlertDialog imports at the top of Substitutions.jsx (lines 10-12) but never wrapped the trigger button in JSX. The Confirm All button at line 109 still has a direct onClick={confirmAllAndNotify}. Fix is purely JSX — replace `<Button ... onClick={confirmAllAndNotify} data-testid='confirm-all-notify-btn'>Confirm All & Notify</Button>` with `<AlertDialog><AlertDialogTrigger asChild><Button data-testid='confirm-all-notify-btn'>Confirm All & Notify</Button></AlertDialogTrigger><AlertDialogContent>...<AlertDialogFooter><AlertDialogCancel data-testid='confirm-all-cancel'>Cancel</AlertDialogCancel><AlertDialogAction data-testid='confirm-all-confirm' onClick={confirmAllAndNotify}>Confirm</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>`. Single-file change, no backend impact."
+}

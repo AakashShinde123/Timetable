@@ -1,0 +1,61 @@
+{
+  "summary": "Iteration-8 frontend-only retest of the 3 critical regressions reported in iteration_7.json. All 3 fixes VERIFIED PASSING. Smoke regression of previously-passing iter-7 testids also all PASS. No new regressions. Backend pytest skipped per main-agent instruction (97/97 already green).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "retest_results": {
+    "dashboard_/school/<sid>/": {
+      "overlay": false,
+      "nav-dashboard": "OK",
+      "nav-users": "OK",
+      "sidebar-help-link": "OK",
+      "verdict": "PASS - SchoolLayout sidebar fully renders at the index route. Previous iter-7 navigation was incorrectly using /school/<sid>/dashboard which has no Route and is caught by the * catch-all and redirected to /."
+    },
+    "timetable_/school/<sid>/timetable": {
+      "overlay": false,
+      "schedule-activity-btn": "OK (enabled)",
+      "dialog_after_click": {
+        "activity-pick": "OK",
+        "activity-period": "OK",
+        "confirm-schedule-activity": "OK"
+      },
+      "verdict": "PASS - openActivityScheduler / onActivityPick / scheduleActivity handlers now defined; load() also fetches /activities and calls setActivities. No ReferenceError, full dialog renders with all 3 expected testids."
+    },
+    "classes_/school/<sid>/classes": {
+      "overlay": false,
+      "auto-match-facilities-btn": "OK",
+      "click_behaviour": "POST /classes/auto-match-facilities preview returned 0 matches for seeded data and sonner toast 'No room_no -> facility matches found' rendered. This is the expected happy-path success for default seed.",
+      "verdict": "PASS - autoMatchFacilities handler defined and end-to-end network call works."
+    },
+    "regression_smoke": {
+      "help-search": "PASS",
+      "help-topics": "PASS",
+      "members-table": "PASS",
+      "new-member-btn": "PASS",
+      "permissions-matrix": "PASS (visible after opening new-member modal)",
+      "save-member-btn": "PASS (visible in new-member modal)",
+      "auto-from-attendance-btn": "PASS"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_8.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Carry-over (not retested in iter-8 since not requested): perms.py email-fallback should normalize to lowercase; members.py POST upsert return should call serialize_doc; ai.py auto-from-attendance dead `and False` expression at line ~140. These were noted in iteration_7 and remain valid suggestions."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "skipped (97/97 from iter-7 still authoritative)",
+    "frontend": "100% (3/3 critical regressions fixed + 7/7 regression smoke testids present)"
+  },
+  "test_credentials": "Mongo-injected Super Admin session (datetime expires_at, user_id field) -- ephemeral session_token=pw_test_i8_1779202352215, cleaned up after the run via direct pymongo delete.",
+  "seed_data_creation": "No persistent seed created. Auto-match-facilities preview ran against existing seeded classes and naturally returned zero matches; nothing applied.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-7 frontend regressions are fixed. Future agents must use /school/<sid>/ (trailing slash, no 'dashboard' segment) when verifying SchoolLayout sidebar. The protected-route Auth fallback is /login, and the catch-all <Route path='*'> redirects to /. When injecting a Super Admin session: db.users requires user_id (string) and db.user_sessions requires expires_at as a real datetime, not a string (auth.py compares against datetime.now(timezone.utc)).",
+  "rca of the issue": "Iter-7 reported 3 regressions; all three are now resolved. (1) Timetable openActivityScheduler/onActivityPick/scheduleActivity are implemented at Timetable.jsx lines 52-87 and load() at lines 32-50 also fetches /activities. (2) Classes autoMatchFacilities is implemented at Classes.jsx lines 68-78 doing preview -> window.confirm -> apply round-trip. (3) The earlier dashboard 'sidebar missing' was a test-side mistake: /school/<sid>/dashboard is not a defined Route and is caught by `<Route path='*' element={<Navigate to=\"/\" replace />}/>` so the test landed on the Schools listing instead of inside SchoolLayout. The correct path is /school/<sid>/ which uses `<Route index element={<SchoolDashboard/>}/>` and renders the sidebar."
+}

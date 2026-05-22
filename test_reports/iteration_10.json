@@ -1,0 +1,65 @@
+{
+  "summary": "Iteration-10 full-stack regression + new feature verification. Added /app/backend/tests/test_iter10.py (6 tests) covering 202 background shape, sync background=false, dry_run no-flip, multi-time auto_sync_times persistence, scheduler log 3-job registration, and disable-removes-jobs log. Full pytest suite is now 126/126 passing (97 base + 23 iter-9 + 6 iter-10). Playwright verified: Emergent badge/script/meta fully stripped, Login copy updated to 'Sign-in is delegated to Google OAuth', SchoolDashboard autosync-times-input + autosync-notify-late-switch persist '07:10, 07:15, 07:25' across reload, Members <table data-testid='permissions-matrix'> renders with 7 dynamic columns [view, manage, edit, generate, run, snapshot, settings] + matrix-row-attendance present + perm-attendance.view toggles unchecked->checked, Substitutions Confirm All & Notify hits 202 with correct background shape. ONE frontend regression found: toast renders 'Confirmed undefined substitution(s)' on the 202 background response (see action_items).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Substitutions.jsx confirmAllAndNotify", "issue": "On the new 202 background response the body contains 'queued' and 'job_id' but no 'confirmed' field, so the success toast reads 'Confirmed undefined substitution(s) · Twilio not configured — notifications skipped'. Should fall back to res.data.queued when res.data.background===true and ideally surface job_id.", "selector": "[data-testid='confirm-all-notify-btn'] toast handler at /app/frontend/src/pages/Substitutions.jsx line 76-80", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "iter10_verification": {
+    "backend": {
+      "confirm_all_default_202_background_shape": "PASS — returns {ok:true, background:true, job_id:'confirm_*', date, queued:int, twilio_configured:false}",
+      "confirm_all_background_false_synchronous": "PASS — still 202 (route is status_code=202), body includes {confirmed, notifications[], twilio_configured:false} and DB row flips to 'confirmed'",
+      "confirm_all_dry_run_no_flip": "PASS — body has dry_run:true; the seeded suggested row remains status='suggested'",
+      "put_school_auto_sync_times_three_values": "PASS — PUT body {auto_sync_enabled:true, auto_sync_times:['07:10','07:15','07:25'], notify_latecomers:true, auto_confirm_substitutions:false} → response and GET reflect all 3 times + notify_latecomers:true",
+      "scheduler_three_jobs_registered_log": "PASS — backend.err.log shows three 'autosync job registered for school sch_0df9200b7a @ 07:10|07:15|07:25' lines after PUT",
+      "scheduler_disable_removes_all_jobs_log": "PASS — PUT auto_sync_enabled:false followed by 'autosync all jobs removed for sch_0df9200b7a' log line",
+      "full_regression_126_tests": "PASS — pytest /app/backend/tests/ → 126 passed in 118.11s"
+    },
+    "frontend": {
+      "emergent_badge_removed": "PASS — document.querySelector('#emergent-badge')===null, script[src*='emergent-main.js']===null, meta[name='description']='School time table management and operations OS' (no 'emergent.sh')",
+      "login_copy_updated": "PASS — 'Sign-in is delegated to Google OAuth' present, 'managed via Emergent' absent",
+      "autosync_widget_times_input": "PASS — data-testid='autosync-times-input' accepts '07:10, 07:15, 07:25' and persists after Save+reload",
+      "autosync_widget_notify_late_switch": "PASS — data-testid='autosync-notify-late-switch' present, toggles on, persists",
+      "members_matrix_is_table_element": "PASS — table[data-testid='permissions-matrix'].tagName === 'TABLE'",
+      "members_matrix_dynamic_columns": "PASS — <thead> has 7 action columns ['view','manage','edit','generate','run','snapshot','settings'] + 1 RESOURCE column = 8 <th>",
+      "members_matrix_row_attendance": "PASS — data-testid='matrix-row-attendance' rendered",
+      "members_matrix_disabled_cells_count": "PASS — 99 disabled checkboxes for resource.action keys that don't exist in vocab (greyed)",
+      "members_matrix_checkbox_toggles": "PASS — perm-attendance.view data-state goes 'unchecked' → 'checked' on click",
+      "substitutions_confirm_all_notify_202": "PASS — click fires POST that returns 202 {ok:true, background:true, job_id:'confirm_edf488df33', queued:0, twilio_configured:false}",
+      "substitutions_confirm_all_notify_toast_TEXT": "FAIL (minor) — toast string reads 'Confirmed undefined substitution(s) · Twilio not configured — notifications skipped' because res.data.confirmed is absent in 202 background body"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter10.py",
+    "/app/backend/tests/test_iter9.py",
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/iter10_results.xml"
+  ],
+  "action_items": [
+    "Fix /app/frontend/src/pages/Substitutions.jsx::confirmAllAndNotify toast to handle the new 202 background response shape — use res.data.queued + 'queued for background job ' + res.data.job_id when res.data.background===true, otherwise keep the existing res.data.confirmed string. Current text 'Confirmed undefined substitution(s)' is a regression.",
+    "(Carry-over polish from iter-9) confirm-all-and-notify _confirm_all_inner sets channel='dry_run' when dry_run=true — good; but it always returns notifications[] even when dry-run with no teachers — fine."
+  ],
+  "critical_code_review_comments": [
+    "ai.py: when background=True and dry_run=False, _do_work() runs as a fire-and-forget asyncio.create_task — if it raises, the exception is swallowed (no asyncio.shield, no error log on the task). Consider wrapping with try/except and emitting a structured log so failed background confirms aren't lost silently.",
+    "scheduler.py:69 has a leftover ternary 'n_cells if False else \"periods\"' which always evaluates to the literal string 'periods'. Either drop the ternary or actually use n_cells in the message for the late teacher.",
+    "scheduler.py:108-113 conditionally calls confirm_all_and_notify inside the cron — that endpoint now returns 202 immediately and fires-and-forgets, so this nested call won't actually wait/confirm anything before the next pipeline step runs. From the scheduler context it works (we call the inner handler with a fake user), but it relies on background=True default. Consider passing background:false from the cron path to keep the cron deterministic.",
+    "Substitutions.jsx::confirmAllAndNotify still uses window.confirm() — fine for prod but breaks Playwright by default; testing agent had to attach page.on('dialog') handler. Consider a shadcn AlertDialog for consistency.",
+    "perms.py / Members.jsx integration: when permissions vocabulary contains a 'settings' action for some resources but not others, the matrix correctly disables those cells, but there is no tooltip explaining 'permission not available for this resource'. Minor UX nit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter10.py"
+  ],
+  "success_rate": {"backend": "100% (126/126)", "frontend": "92% (5/5 critical iter-10 surfaces verified; 1 minor toast-copy regression)"},
+  "test_credentials": "pytest: session-scoped Super Admin via /app/backend/tests/conftest.py session_token fixture. Playwright: mongo-injected Super Admin (cleaned up post-run, user_id=ui-iter10-1779214953356).",
+  "seed_data_creation": "Used existing /api/seed/sri-ma-vidyalaya (school_id=sch_0df9200b7a). Inserted/teardown 3 'suggested' substitutions for today's date (one each for bg/sync/dry_run tests). School auto_sync_enabled reset to false after testing.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 iter-10 requested items verified end-to-end. Remaining bug: Substitutions.jsx toast displays 'undefined' on the 202 background response shape — main agent should update the toast string-building in confirmAllAndNotify to switch on res.data.background. Backend logs path for cron-registration audit: tail -n 500 /var/log/supervisor/backend.err.log | grep 'autosync job registered'. The Members permissions-matrix is now correctly an actual <table> element (was a <div> in iter-9). Twilio env keys are intentionally BLANK in /app/backend/.env — confirm endpoints degrade to channel='none' status='skipped' as expected. MOCKED: Twilio (notifier.send_with_fallback returns ('none','skipped',err) when env unset).",
+  "rca of the issue": "Toast 'undefined' bug RCA: routers/ai.py confirm_all_and_notify now returns two different response shapes: (a) when background=True and not dry_run → {ok, background:true, job_id, date, queued, twilio_configured} (no 'confirmed' key); (b) synchronous path → {date, dry_run, job_id, twilio_configured, confirmed, notifications}. Frontend Substitutions.jsx unconditionally reads res.data.confirmed, which is undefined in case (a). Fix: branch on res.data.background — show 'Queued <queued> for background job <job_id>' for (a) and the existing 'Confirmed <confirmed>' for (b)."
+}

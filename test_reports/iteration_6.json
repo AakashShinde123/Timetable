@@ -1,0 +1,31 @@
+{
+  "summary": "Iteration-6 backend + frontend testing complete. Appended 21 new pytest cases to /app/backend/tests/test_backend.py covering: eSSL Devices CRUD (4), Labs->Facilities migration idempotency (1), Attendance CSV import + dedup (2), Manual punch + validation (2), Attendance LIST/filter/summary/delete (3), sync-essl error paths 400 + 502 unreachable (2), Activity new fields type/facility_id/target_class_ids/periods_per_week (2), Facility Lab type (1), place-activity broadcast via target_class_ids (1), Teacher schedule role-scoping admin-200 / mismatched-email-403 / matching-email-200 incl. /schedule/pdf (3). Final pytest result: 84/84 passing in 101.79s (63 regression + 21 new). Playwright frontend smoke confirmed all required iteration-6 testids on /school/<id>/* routes with Super-Admin cookie session: sidebar nav-attendance + nav-facilities present, nav-labs absent; SchoolDashboard stat-attendance present, stat-labs absent; Attendance page exposes essl-devices-panel + upload-attendance-input + new-essl-device-btn + attendance-summary + attendance-date; Facilities page exposes migrate-labs-btn + labs-grid + new-facility-btn; Activities dialog exposes activity-target-classes + toggle-all-classes; Timetable contains 'Facilities' palette tab text; /school/<id>/labs URL redirects to /facilities.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/api/schools/{sid}/attendance/sync-essl unreachable-IP path uses pyzk default 8s timeout — the endpoint correctly returns 502, but tests pass timeout=3 in the body and that is honoured. Good defensive default.",
+    "Attendance dedup key (school_id+date+time+punch_type+raw_user_id) means two manual punches in same minute for same teacher would silently dedupe. Acceptable for current school scale; consider adding a 'manual_seq' tiebreaker if precise back-to-back manual entries are needed.",
+    "/api/migrate/labs-to-facilities returns mapping for every Lab on every run (not just new ones); fine for one-time use but mapping array grows O(total_labs) on each call — consider scoping the response when used repeatedly.",
+    "Teacher-schedule role check uses email match — case-insensitive lower() is good, but trailing whitespace or alternate-domain users could escape. Consider normalising emails at write time.",
+    "make_master_routes auto-uppercases payload['abbreviation'] for any model — currently a Facility or ESSLDevice payload that accidentally carries an 'abbreviation' field would mutate; cosmetic risk only."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backend.py"
+  ],
+  "success_rate": {"backend": "100% (84/84, 21 new + 63 regression)", "frontend": "100% (all iteration-6 testids verified)"},
+  "test_credentials": "Injected Super Admin session via mongosh per /app/auth_testing.md (token: pw_test_*, role 'Super Admin'). For the teacher-scoping test, two Teacher-role users are inserted+torn-down inside TestTeacherScheduleScoping (one mismatched-email, one matching-email).",
+  "seed_data_creation": "Relied on existing idempotent /api/seed/sri-ma-vidyalaya/full. Added/removed TEST_ prefixed: TEST_ESSL_Main eSSL device, TEST_Auditorium_I6 facility, TEST_Assembly_I6 activity, TEST_PhysicsLab_I6 Lab-facility, TEST_Broadcast_I6 activity + 2 timetable cells on Sat last period. CSV-imported attendance rows (UserID 101/102 @ 2026-02-01) and the manual MN punch @ 2026-02-02 are deleted in TestAttendanceListAndSummary.test_delete_manual_punch. The MN teacher email is set to mn_<ts>@example.com inside the scoping test — main-agent note: that email persists in the seeded record after the run; if a clean seed is desired, drop and re-run /api/seed/sri-ma-vidyalaya/full.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_backend.py now has 84 tests (63 iter1-5 + 21 iter6). Iteration-6 classes: TestESSLDevicesCRUD, TestMigrateLabsToFacilities, TestAttendanceImportFile (uses raw multipart via `requests` because conftest auth_client sets Content-Type: application/json which breaks file uploads — copy this pattern for future uploads), TestAttendanceManual, TestAttendanceListAndSummary, TestSyncESSLErrors (uses TEST-NET 192.0.2.1 with timeout=3 so the 502 path returns within ~5s), TestActivityNewFields, TestFacilityLabType, TestPlaceActivityBroadcast (uses Sat + last non-break period to avoid autogen Mon-Fri collision), TestTeacherScheduleScoping (DB-inserts two Teacher-role users with managed teardown_class cleanup). Frontend routes use /school/<id>/* (singular). The Super-Admin cookie session bypasses school_ids gating, so direct deep-links work.",
+  "rca of the issue": "N/A — no failures."
+}

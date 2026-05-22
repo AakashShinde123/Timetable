@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #F4F4F5;
+    color: #09090B;
+}
+
+.font-heading {
+    font-family: 'Cabinet Grotesk', 'IBM Plex Sans', sans-serif;
+}
+
+.font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+    :root {
+        --background: 240 5% 96%;
+        --foreground: 240 10% 4%;
+        --card: 0 0% 100%;
+        --card-foreground: 240 10% 4%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 240 10% 4%;
+        --primary: 224 100% 33%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 220 14% 91%;
+        --secondary-foreground: 220 9% 9%;
+        --muted: 240 5% 90%;
+        --muted-foreground: 240 4% 46%;
+        --accent: 240 5% 90%;
+        --accent-foreground: 240 6% 10%;
+        --destructive: 4 100% 60%;
+        --destructive-foreground: 0 0% 100%;
+        --border: 240 6% 84%;
+        --input: 240 6% 84%;
+        --ring: 224 100% 33%;
+        --chart-1: 224 100% 33%;
+        --chart-2: 217 100% 50%;
+        --chart-3: 4 100% 60%;
+        --chart-4: 50 100% 50%;
+        --chart-5: 161 84% 39%;
+        --radius: 0.25rem;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+    h1, h2, h3, h4, h5, h6 {
+        font-family: 'Cabinet Grotesk', sans-serif;
+        letter-spacing: -0.02em;
+    }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D4D4D8; border-radius: 0; }
+::-webkit-scrollbar-thumb:hover { background: #71717A; }
+
+/* Drag and drop helpers */
+.tt-cell.drag-over {
+    background-color: #DBEAFE !important;
+    border: 2px dashed #002FA7 !important;
+}
+
+.tt-card-dragging {
+    opacity: 0.5;
+}
+
+.constraint-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.625rem;
+    background: #FFFFFF;
+    border: 1px solid #D4D4D8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    cursor: grab;
+    transition: all 200ms ease;
+}
+
+.constraint-chip:hover {
+    border-color: #002FA7;
+    background: #F8FAFC;
+}
+
+.constraint-chip.dragging {
+    opacity: 0.5;
+}
+
+@layer base {
+    [data-debug-wrapper="true"] {
+        display: contents !important;
+    }
+}

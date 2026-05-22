@@ -1,0 +1,73 @@
+{
+  "summary": "Iter-11 backend + frontend regression. Added /app/backend/tests/test_iter11.py (5 tests) covering TTL index (attendance_ttl_at_ttl with expireAfterSeconds=365*86400), secondary indexes (attendance_school_date, attendance_school_teacher_date), paged GET /attendance shape {total,limit,offset,items}, ?limit=2&offset=0 honour, and ttl_at being a native datetime (not ISO string) after manual punch. Also fixed 2 stale tests in test_backend.py (broken 'from db import db' import + missing dotenv load). Full pytest suite is now 131/131 passing. Frontend: Help and Classes screens verified end-to-end (TOC, 10 numbered steps, 10 topics, KPI tiles, IDENTITY/LOCATION/OPERATIONS modal, 'Will save as' preview, UNMAPPED red badges, filter-shift/filter-section, section-group). Found and fixed a hard crash in Timetable.jsx (activeShiftId/setActiveShiftId useState was missing — page threw ReferenceError 'activeShiftId is not defined' and rendered nothing). After fix, shift-select and class-select render correctly on multi-shift school. Substitutions Confirm-All AlertDialog is NOT wired (regression — see action item).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Timetable.jsx", "issue": "ReferenceError: 'activeShiftId is not defined' — JSX referenced activeShiftId/setActiveShiftId without a corresponding useState. Page crashed before this fix. FIXED in-place by adding 'const [activeShiftId, setActiveShiftId] = useState(\\'\\')' at line 25.", "selector": "[data-testid='shift-select']", "priority": "CRITICAL"},
+      {"component": "Substitutions.jsx", "issue": "Iter-11 spec requires AlertDialog wrapping 'Confirm All & Notify' with testids 'confirm-all-confirm' and 'confirm-all-cancel'. AlertDialog is IMPORTED but NOT used in JSX — button at line 109 directly calls confirmAllAndNotify on click, firing the API immediately (verified: toast 'Queued 0 substitution(s) · job confirm_33fbf335fc · Twilio not configured' appears with NO dialog opening). confirm-all-confirm / confirm-all-cancel testids do not exist in DOM.", "selector": "[data-testid='confirm-all-notify-btn']", "priority": "HIGH"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "iter11_verification": {
+    "backend": {
+      "attendance_ttl_index": "PASS — index 'attendance_ttl_at_ttl' present, expireAfterSeconds==31536000, key=ttl_at",
+      "attendance_secondary_indexes": "PASS — attendance_school_date + attendance_school_teacher_date both present",
+      "attendance_paged_shape": "PASS — GET /api/schools/{sid}/attendance returns {total:int, limit:int, offset:int, items:list}",
+      "attendance_pagination": "PASS — ?limit=2&offset=0 honoured (len(items)<=2)",
+      "attendance_ttl_at_native_datetime": "PASS — manual punch persists doc['ttl_at'] as bson Date (Python datetime), not ISO string",
+      "full_regression_131_tests": "PASS — pytest /app/backend/tests/ → 131 passed in 69.64s"
+    },
+    "frontend": {
+      "help_toc_present": "PASS — data-testid='help-toc' rendered",
+      "help_first_time_setup_10_steps": "PASS — help-step-first-time-setup-0 to help-step-first-time-setup-9 all present (10 steps)",
+      "help_topics_count": "PASS — 10 topics rendered with help-topic-<id> testids",
+      "classes_kpi_tiles": "PASS — TOTAL CLASSES (43) / SECTIONS (4) / SHIFTS (2) / STUDENTS (1290) rendered",
+      "classes_filters": "PASS — filter-shift + filter-section dropdowns present",
+      "classes_section_groups": "PASS — section-group-<id> elements rendered",
+      "classes_subtitle_explains_glossary": "PASS — Standard / Division / Section / Shift / Facility all in subtitle",
+      "classes_modal_striped_sections": "PASS — IDENTITY / LOCATION / OPERATIONS all present in modal text",
+      "classes_modal_will_save_as_preview": "PASS — 'Will save as: Standard 11 · Z' renders live on type",
+      "classes_modal_required_fields": "PASS — class-standard-input + class-division-input + class-shift-select all wired",
+      "classes_unmapped_badge": "PASS — visible in screenshot for classes with no facility/room_no",
+      "timetable_shift_select_multishift": "PASS (AFTER FIX) — shift-select + class-select both render on 2-shift school; pre-fix the page crashed with 'activeShiftId is not defined'",
+      "members_tooltip_disabled_cells": "CODE-VERIFIED ONLY — Members.jsx lines 224-237 wrap each disabled cell in TooltipProvider+Tooltip+TooltipContent with text '\\\"<action>\\\" is not available for <RESOURCE_LABELS[res]>'. data-testid='perm-disabled-<res>-<action>' present. Browser interaction not verifiable in this run (Members route redirected to / on direct nav).",
+      "substitutions_alertdialog": "FAIL — AlertDialog imported but NOT used in JSX. Confirm All button still calls API directly with no confirmation dialog. testids confirm-all-confirm + confirm-all-cancel ABSENT in DOM."
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter11.py",
+    "/app/backend/tests/test_iter10.py",
+    "/app/backend/tests/test_iter9.py",
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/iter11_results.xml"
+  ],
+  "action_items": [
+    "Wrap the 'Confirm All & Notify' button in /app/frontend/src/pages/Substitutions.jsx with AlertDialog (already imported at line 10-12). The trigger should be the existing button [data-testid='confirm-all-notify-btn']; AlertDialogAction needs data-testid='confirm-all-confirm' (calls confirmAllAndNotify) and AlertDialogCancel needs data-testid='confirm-all-cancel'. Currently the button's onClick fires confirmAllAndNotify directly with no confirmation dialog.",
+    "(Already fixed by testing agent) /app/frontend/src/pages/Timetable.jsx was missing useState for activeShiftId — added 'const [activeShiftId, setActiveShiftId] = useState(\\'\\')' at line 25. Please verify on next pass.",
+    "(Already fixed by testing agent) /app/backend/tests/test_backend.py had a stale 'from db import db as _db' import + os.environ['MONGO_URL'] without dotenv loading — both fixed so the CSV import/dedup pair pass."
+  ],
+  "critical_code_review_comments": [
+    "Timetable.jsx had a SHOWSTOPPER bug — activeShiftId referenced in JSX without useState declaration. This was likely caught only because iter-11 introduced the shift-select component that exercises it. Recommend ESLint react-hooks/exhaustive-deps + no-undef rules in CI to catch this earlier.",
+    "Substitutions.jsx — AlertDialog imports at lines 10-12 are unused (dead code) until the iter-11 wrap is completed. Either complete the wiring or remove the import.",
+    "test_backend.py line 1254 — previous testing agent left 'from db import db as _db' even though no 'db' module exists. Removed.",
+    "test_backend.py + test_iter11.py — direct mongo access via os.environ['MONGO_URL'] needs explicit load_dotenv('/app/backend/.env') call; otherwise pytest collects env from shell which doesn't carry backend/.env values. Added load_dotenv in test_iter11.py and a localized version in the CSV cleanup block.",
+    "server.py startup_indexes backfill loop limits to 20000 docs per startup — fine for current volumes but should add a counter log for visibility on large datasets.",
+    "routers/attendance.py list_attendance — projection drops 'ttl_at' from response which is correct (it's an internal TTL field). 'total' uses count_documents — keep an eye on perf if attendance grows past 1M docs (consider estimatedDocumentCount on empty filter)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter11.py (new)",
+    "/app/backend/tests/test_backend.py (removed broken import + added dotenv)",
+    "/app/frontend/src/pages/Timetable.jsx (added missing useState for activeShiftId)"
+  ],
+  "success_rate": {"backend": "100% (131/131)", "frontend": "85% (5/6 iter-11 surfaces verified; Substitutions AlertDialog not wired; Members tooltip code-verified but not browser-verified)"},
+  "test_credentials": "pytest: session-scoped Super Admin via /app/backend/tests/conftest.py. Playwright: mongo-injected Super Admin (user_id=ui-iter11-1779260612662, session_token=tok_iter11_1779260612662) — cleanup recommended.",
+  "seed_data_creation": "Used existing seeded school sch_0df9200b7a (SriMa Vidyalaya CBSE School, 43 classes, 4 sections, 2 shifts, 1290 students). Inserted 3 manual punches on 2026-02-15 for pagination test and 1 manual punch on 2026-02-16 for ttl_at datetime test.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "After main agent wires the Substitutions AlertDialog (testids confirm-all-confirm + confirm-all-cancel), retest: (1) click confirm-all-notify-btn → AlertDialog opens, (2) confirm-all-cancel → dialog dismisses, no API call, (3) confirm-all-confirm → API called, toast 'Queued N · job confirm_<id>'. The Members tooltip code is verified-by-source — to verify in browser, first land on / then navigate via sidebar to Members (direct deep-link to /school/<sid>/members may redirect to / due to a navigation race; not investigated). Twilio remains intentionally blank in /app/backend/.env. MOCKED: Twilio notifier returns ('none','skipped','twilio not configured').",
+  "rca of the issue": "Timetable crash RCA: iter-11 added shift-select feature with refs to activeShiftId in JSX (line 62, 70, 72, 75, 76, 279) AND a useEffect at line 70 that calls setActiveShiftId. But the useState declaration was never added alongside the other state hooks at lines 15-32. Result: at component render React threw ReferenceError, the error boundary swallowed it, and the whole toolbar (shift-select + class-select + all action buttons) rendered as empty. The fix is a single line: 'const [activeShiftId, setActiveShiftId] = useState(\\'\\')' added after activeClass at line 25. After this, classesInActiveShift correctly defaults to full classes list (when activeShiftId is empty string, falsy ternary picks full list) until a shift is picked. Substitutions AlertDialog RCA: imports present, JSX missing — author added imports but never wrapped the button. The onClick still directly calls confirmAllAndNotify."
+}

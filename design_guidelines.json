@@ -1,0 +1,104 @@
+{
+  "theme": "light",
+  "archetype": "4",
+  "archetype_name": "Swiss & High-Contrast",
+  "design_philosophy": "Authority, Clarity, Truth. For a complex SaaS admin tool like a school timetable management system with 60-70 constraints, the design must prioritize data density, functional clarity, and high legibility. The interface acts as a command center. We use sharp contrasts, a strict bento-style 'Control Room' grid, and modular cards to manage the intense data load.",
+  "colors": {
+    "primary": "#002FA7",
+    "primary_foreground": "#FFFFFF",
+    "secondary": "#E5E7EB",
+    "secondary_foreground": "#111827",
+    "accent_blue": "#0055FF",
+    "accent_red": "#FF3B30",
+    "accent_yellow": "#FFCC00",
+    "background": "#F4F4F5",
+    "surface": "#FFFFFF",
+    "border": "#D4D4D8",
+    "text_main": "#09090B",
+    "text_muted": "#71717A",
+    "hover_state": "#E4E4E7"
+  },
+  "typography": {
+    "font_heading": "Cabinet Grotesk, sans-serif",
+    "font_body": "IBM Plex Sans, sans-serif",
+    "font_mono": "JetBrains Mono, monospace",
+    "h1": "text-4xl sm:text-5xl font-black tracking-tighter leading-none text-[#09090B]",
+    "h2": "text-2xl sm:text-3xl font-bold tracking-tight text-[#09090B]",
+    "h3": "text-xl sm:text-2xl font-semibold tracking-tight text-[#09090B]",
+    "body": "text-base leading-relaxed text-[#09090B]",
+    "small_label": "text-xs font-bold uppercase tracking-[0.2em] text-[#71717A]"
+  },
+  "spacing_and_layout": {
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 or gap-6",
+    "container_padding": "p-6 sm:p-8 md:p-12",
+    "card_padding": "p-6",
+    "border_radius": "rounded-none md:rounded-sm",
+    "alignment": "Left-aligned for dense data, forms, and paragraphs. Center alignment reserved for empty states."
+  },
+  "surface_strategies": {
+    "dashboard_cards": "Flat background (bg-white), 1px solid border (border-border), no shadow. On hover: slight lift (-translate-y-1), subtle shadow (shadow-md), border color darkens.",
+    "header": "Solid Background (bg-white) with a hard 1px bottom border (border-border). Must be z-50.",
+    "constraint_builder": "Grid Borders ('Technical' Look) - Expose the skeleton. border-collapse style layout for node-based canvas, inspector panel on the right."
+  },
+  "components": {
+    "buttons": "Square or slightly rounded (rounded-sm). Primary button uses #002FA7 bg. High contrast focus rings (focus:ring-2 focus:ring-[#0055FF]).",
+    "inputs": "Shadcn inputs. 1px border. Focus state must have higher contrast.",
+    "tables": "Dense rows. Clear headers. Hover states on rows (hover:bg-gray-50/50). Zebra striping optional but subtle.",
+    "drag_drop_timetable": "Grid of days x periods. Draggable teacher-subject cards. Snap-to-grid. Clear drop zones. Real-time clash validation highlights (red border).",
+    "constraint_builder_ui": "Split-view: left/center is graph-based canvas with tokens/chips. Right is inspector panel. Constraint chips represent boolean logic (e.g., Status = Active). Nested groups and draggable tokens."
+  },
+  "motion_and_interactions": {
+    "hover": "Explicit text color changes (e.g., hover:bg-slate-900 hover:text-white). Lighter hue for hover bg.",
+    "focus": "High contrast ring. e.g., focus:ring-2 focus:ring-[#002FA7]",
+    "drag_drop": "Scale up slightly while dragging (scale-105). Drop target highlights with dashed border.",
+    "transitions": "transition-all duration-200 ease-in-out"
+  },
+  "icons": {
+    "library": "lucide-react",
+    "usage": "Use consistently for sidebar nav, table actions, and constraint builder nodes."
+  },
+  "media_and_images": {
+    "hero_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/8f7f81bc-aa22-480b-af98-df89fffe94cd/images/e1ad0f759caeaff253b2e588141f2b24f8989ecb4adc55c01448d3d128d05e02.png",
+      "description": "Abstract background for a school administration SaaS web app, featuring a sleek, minimalist data grid layout. Used in the login or landing page."
+    },
+    "school_building": {
+      "url": "https://images.unsplash.com/photo-1613896527026-f195d5c818ed?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzNzl8MHwxfHNlYXJjaHwxfHxzY2hvb2wlMjBidWlsZGluZyUyMGJyaWdodCUyMGRheXxlbnwwfHx8fDE3NzkwOTYyMTV8MA&ixlib=rb-4.1.0&q=85",
+      "description": "Image of a school building, can be used in the school dashboard settings or header."
+    },
+    "teacher_profiles": [
+      {
+        "url": "https://images.unsplash.com/photo-1758336011136-343678e4fc05?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxpbmRpYW4lMjB0ZWFjaGVyJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc5MDk2MjE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Indian teacher portrait 1, use for teacher master grid or mock profiles."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1601655781320-205e34c94eb1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwyfHxpbmRpYW4lMjB0ZWFjaGVyJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc5MDk2MjE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Indian teacher portrait 2, use for teacher master grid."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1659353222020-243d556611d8?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwzfHxpbmRpYW4lMjB0ZWFjaGVyJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzc5MDk2MjE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Indian teacher portrait 3, use for teacher master grid."
+      }
+    ],
+    "students_activities": [
+      {
+        "url": "https://images.unsplash.com/photo-1524069290683-0457abfe42c3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxzY2hvb2wlMjBzdHVkZW50cyUyMHN0dWR5aW5nJTIwaW5kaWF8ZW58MHx8fHwxNzc5MDk2MjE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Group of children taking picture, use for activity rooms or school profile."
+      },
+      {
+        "url": "https://images.unsplash.com/flagged/photo-1574097656146-0b43b7660cb6?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwyfHxzY2hvb2wlMjBzdHVkZW50cyUyMHN0dWR5aW5nJTIwaW5kaWF8ZW58MHx8fHwxNzc5MDk2MjE1fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Shallow focus photo of girl holding newspaper, use for library or student sections."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Strictly adhere to the selected Light Theme and Swiss & High-Contrast archetype (#4).",
+    "Implement the 'Control Room' bento grid for the school dashboard.",
+    "Use pure HTML and Tailwind for structural layout. Use customized Shadcn for interactive logic.",
+    "For the drag and drop Timetable Builder, use a grid layout with snap-to-cell mechanics and visual clash indications (e.g., red highlight for overlaps).",
+    "For the Constraint Builder, implement a split-view layout. Use chips/tokens for constraints. Left canvas for dragging and dropping constraint blocks, right panel for inspector settings.",
+    "Include 'data-testid' attributes on all interactive elements (buttons, inputs, dropdowns, table rows).",
+    "Use IBM Plex Sans for body text to ensure data grid clarity, and Cabinet Grotesk for headings.",
+    "Never use placeholder image services. Rely strictly on the media_and_images provided here."
+  ]
+}

@@ -1,0 +1,60 @@
+{
+  "summary": "Iteration-7 backend + frontend testing complete. Appended 13 new pytest cases to /app/backend/tests/test_backend.py covering: Permissions vocabulary (1), Members CRUD incl. role-preset / custom-perms filtering / upsert / PUT / GET-me Super-Admin / GET-me empty / require_perm 403 / DELETE pulls school_id (8 tests), Auto-from-attendance bad-date 400 + happy-path with idempotent rerun (2), Auto-match-facilities preview + apply (1). Final pytest result: 97/97 passing in 103.81s (84 regression + 13 new). Frontend Playwright smoke confirmed: /help route renders help-search + help-topics + 9 help-topic-* rows, Schools page has help-btn, Members page at /school/<id>/users exposes members-table, new-member-btn, permissions-matrix (20 perm checkboxes), save-member-btn, Substitutions page has auto-from-attendance-btn. **CRITICAL FRONTEND BUGS** found on Timetable + Classes pages — both crash with React 'is not defined' ReferenceErrors that fill the page with the error overlay and prevent ALL testids from rendering (including SchoolLayout sidebar). Dashboard route also fails to expose sidebar testids — likely the same crash class.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Timetable.jsx",
+        "issue": "ReferenceError: openActivityScheduler is not defined (line 225 onClick) AND scheduleActivity is not defined (line 291 onClick). The Schedule Activity dialog state (actOpen, actForm) is declared but the open/submit handler functions were never implemented, so the entire Timetable Builder page crashes on render with a full-screen React error overlay. schedule-activity-btn, activity-pick, activity-period, confirm-schedule-activity testids never appear.",
+        "selector": "[data-testid='schedule-activity-btn']",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "Classes.jsx",
+        "issue": "ReferenceError: autoMatchFacilities is not defined. The onClick handler on the auto-match-facilities-btn references an undeclared function — the entire Classes page crashes on render. auto-match-facilities-btn and any other testids on this page are unreachable.",
+        "selector": "[data-testid='auto-match-facilities-btn']",
+        "priority": "CRITICAL"
+      },
+      {
+        "component": "School Dashboard route",
+        "issue": "Navigating to /school/<sid>/dashboard returns a page where SchoolLayout sidebar testids (nav-dashboard, nav-users, sidebar-help-link) are not present in the DOM. Likely caused by a runtime error in the Dashboard child component (or the same crash class as Timetable/Classes). Need main agent to verify Dashboard.jsx for any new undefined-handler reference introduced in iter-7.",
+        "selector": "[data-testid='nav-users'], [data-testid='sidebar-help-link']",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Implement openActivityScheduler() and scheduleActivity() in /app/frontend/src/pages/Timetable.jsx — openActivityScheduler should setActOpen(true) (and seed actForm with default day/period), scheduleActivity should POST to /api/schools/<sid>/timetable/place-activity with {activity_id, day, period_id, class_ids: actForm.target_class_ids, facility_id} then setActOpen(false) and reload cells.",
+    "Implement autoMatchFacilities() in /app/frontend/src/pages/Classes.jsx — call POST /api/schools/<sid>/classes/auto-match-facilities (preview), confirm dialog, then POST again with {apply:true} and reload class list.",
+    "Investigate /school/<sid>/dashboard route — SchoolLayout sidebar (nav-users, sidebar-help-link) not rendering. Likely same class of bug (undefined handler in Dashboard.jsx or a shared component). The Members page (/school/<sid>/users) DOES render SchoolLayout correctly, so SchoolLayout itself is fine — issue is in whatever the Dashboard route renders inside <Outlet/>."
+  ],
+  "critical_code_review_comments": [
+    "perms.py line 14-17: members lookup falls back to email when user_id not linked, which is correct, but get_member_permissions does not normalise user.email to lowercase before query — emails written in mixed case will miss the email-fallback lookup. Consider .lower() on user.get('email').",
+    "perms.py legacy-school_ids implicit grant (lines 22-23) returns ['*'] which means anyone with school_id in user.school_ids gets full permissions even if their school_members row is missing. This is intentional backwards compat but should be documented clearly so a future invite that intends 'Viewer' is not accidentally promoted.",
+    "members.py POST /members upsert path returns the OLD existing doc spread with new role/permissions but does NOT include the original 'id' field consistently because existing is dict from find_one — actually it works, but it does not call serialize_doc on the return so any datetime fields will be raw datetime objects. Frontend JSON.parse would crash if invited_at is a Mongo datetime; mitigated only because POST already wrote ISO strings on insert. Recommend wrapping return in serialize_doc.",
+    "ai.py auto-from-attendance line 140: condition `t['id'] in present_ids and False` is dead code (always False) — likely a debug leftover. The intent appears to be 'exclude teachers not present today' which is correctly handled by the next `if punches and t['id'] not in present_ids` block. Cosmetic; remove the dead expression.",
+    "Members invite for a non-existing user creates a row with status='invited' but no out-of-band notification (email) is sent. Acceptable for MVP, but the doc should mention that invited members must sign up with the same email before they can effectively use the school."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backend.py"
+  ],
+  "success_rate": {
+    "backend": "100% (97/97, 13 new + 84 regression)",
+    "frontend": "Partial — Help/Schools/Members/Substitutions testids verified (5/7 features). Timetable + Classes pages crash; Dashboard sidebar testids unreachable. 2 critical runtime errors blocking 3+ pages."
+  },
+  "test_credentials": "Injected Super Admin session via mongosh per /app/auth_testing.md. Backend pytest fixture creates+destroys its own session. Frontend Playwright used cookie session_token=pw_test_i7_1779201940820 (cleaned up after run).",
+  "seed_data_creation": "Relied on existing idempotent /api/seed/sri-ma-vidyalaya/full. Iter-7 tests cleanup their own rows: school_members rows whose email starts with 'test_i7_' are removed in TestMembersCRUD.teardown_class; substitutions for MN+today are removed at end of TestAutoFromAttendance; the seeded temp timetable cell (if any) is removed; the test facility 'TEST_I7_Room_<ts>' and its room_no on the target class are reverted in TestAutoMatchFacilities.teardown_class.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "test_backend.py now has 97 tests (84 iter1-6 + 13 iter7). Iter-7 classes: TestPermissionsVocabulary, TestMembersCRUD (8 tests, mongo-direct user fixtures via _make_session helper), TestAutoFromAttendance (auto-seeds a temp timetable cell for MN on today's weekday if none exists; relies on attendance for MN being absent — pre-deletes attendance rows for MN+today), TestAutoMatchFacilities (creates a temporary facility named to match a room_no it sets on classes[0]). Helpers added: _mongo_db, _make_session, _client_for. After main agent fixes the 3 frontend ReferenceError crashes, re-run the same Playwright flow against /school/<sid>/dashboard, /timetable, /classes to verify nav-users, sidebar-help-link, schedule-activity-btn (+ dialog testids), and auto-match-facilities-btn all appear.",
+  "rca of the issue": "Frontend Timetable.jsx and Classes.jsx both reference handler functions (openActivityScheduler, scheduleActivity, autoMatchFacilities) that are not defined anywhere in the component scope. When React tries to render the page, it crashes immediately on closure-lookup. Reproduction: open https://sched-matrix.preview.emergentagent.com/school/<sid>/timetable (or /classes) with a valid Super Admin session_token cookie — full-screen 'Uncaught runtime errors' overlay appears. Mitigation: add the missing handler implementations as described in action_items. The backend endpoints (POST /timetable/place-activity and POST /classes/auto-match-facilities) both work correctly (verified via pytest), so the fix is purely client-side wiring."
+}

@@ -1,0 +1,33 @@
+{
+  "summary": "Backend testing for 4 new features (constraint engine on cell upsert, /timetable/validate, /timetable/auto-generate, /allotments/bulk, /teachers/{tid}/schedule) plus full regression. 27/27 pytest tests passed (20 regression from iteration 1 + 7 new). Verified: (a) PUT /timetable/cell now returns clashes+violations with severity, MN in P1 fires 'Mini Madam — periods 5–7 only' hard rule. (b) POST /timetable/validate flags HK at P1 as hard violation and saves nothing; HK at P5 returns no HK-specific hard violation. (c) Auto-generate for Grade 6 - A placed 30+ cells, persisted in DB, and respected hard constraint (no MN-in-P1 cell). (d) Bulk allotments correctly upserted 1 valid row (ENG@7 ppw) and returned 2 errors for invalid class/subject; persistence confirmed. (e) Teacher schedule endpoint returns teacher doc + cells filtered by teacher_id with matching total count, and 404 for unknown teacher.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_backend.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "auto-generate uses an in-memory `all_cells` list that is appended-only — DB clashes from OTHER classes outside this list are still re-queried correctly via clash check, but the function never re-fetches before placement; if two auto-gen calls run concurrently, race conditions could place clashing cells. Add a Mongo unique index on (school_id, class_id, day, period_id) and/or (school_id, teacher_id, day, period_id) for safety.",
+    "bulk allotments accepts negative periods_per_week without validation (only int parse). Suggest rejecting periods<0 and very large values.",
+    "auto-generate loops sequentially: days × periods × subjects × teachers. For 6 days × 7 periods × ~30 subjects × ~44 teachers per class this is fine, but it does an O(cells) Python scan inside `teacher_busy` and `load` for every iteration. Consider building dict indexes once per call.",
+    "constraint_engine.evaluate_workload uses fixed thresholds (>2 same class/day, >7 daily). These should come from the rules collection instead of hardcoded values.",
+    "/timetable/validate does not enforce body schema — class_id/day/period_id are accessed with .get() and missing values silently produce empty contexts (no error to client).",
+    "auto-generate when no teacher is tagged for a subject places the cell with teacher_id=None, which silently bypasses teacher-targeting hard rules. Worth surfacing as a warning in the response.",
+    "server.py is now ~1090 lines — should be split into auth/masters/timetable/ai modules."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_backend.py (added 7 new tests + helpers)"
+  ],
+  "success_rate": {"backend": "100% (27/27)", "frontend": "N/A (backend-only request)"},
+  "test_credentials": "Super Admin session injected via mongosh-style fixture in conftest.py.",
+  "seed_data_creation": "Tests invoke /api/seed/sri-ma-vidyalaya and /api/seed/sri-ma-vidyalaya/full (idempotent). Auto-generate test REPLACES the Grade 6 - A timetable cells. TEST_ prefixed schools/users are cleaned up post-run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Run: `MONGO_URL=mongodb://localhost:27017 DB_NAME=test_database REACT_APP_BACKEND_URL=<url> pytest /app/backend/tests/test_backend.py -v`. Constraint-engine relies on seeded RULES in /app/backend/seed_data.py — test_mn_in_p1_hard_violation depends on rule 'Mini Madam — periods 5–7 only' and test_hk_p1_violation_no_save depends on 'HK, MW — no P1, P2, P9'. Auto-generate test mutates Grade 6 - A timetable (replace=True); rerunning is safe. Teacher schedule tests assume MN exists; if seed is missing, test asserts will fail clearly.",
+  "rca of the issue": "N/A — no bugs found in the 4 new features."
+}

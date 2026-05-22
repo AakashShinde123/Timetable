@@ -1,0 +1,59 @@
+{
+  "summary": "Iteration-9 full-stack test pass. Wrote /app/backend/tests/test_iter9.py with 23 new test cases for require_perm gating across masters/bulk-allotments/essl-devices, auto-sync school field plumbing + /autosync/run-now perm gate + best-effort no-device run, confirm-all-and-notify with twilio not configured + dry_run + perm gate. All 23 iter-9 tests PASS and full regression suite is now 120/120 (97 prev + 23 new). Playwright verified the 3 new UI surfaces — Members 'Add User' + matrix-row-* testids, Substitutions confirm-all-notify-btn with correct skipped-Twilio toast, SchoolDashboard autosync-widget round-trip persistence on 08:45.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Members > Add User dialog", "issues": ["data-testid='permissions-matrix' is on the wrapping <div>, while the actual matrix is rendered as a nested <table> inside it. Functionally fine (all matrix-row-<resource>, perm-<key>, header columns VIEW/MANAGE/SPECIAL ACTIONS are present and clickable), but the request specified the matrix itself should be 'an actual table'. Minor — consider moving data-testid='permissions-matrix' onto the <table> element."]}
+    ]
+  },
+  "iter9_verification": {
+    "backend": {
+      "masters_perm_gating": "PASS — POST/PUT/DELETE on teachers/subjects/classes/facilities/sections/activities/shifts/periods/allotments/constraints/labs all 403 for Viewer with permissions=['audit.view']",
+      "essl_devices_attendance_manage": "PASS — POST /essl-devices uses 'attendance.manage' (Viewer 403)",
+      "get_open_to_members": "PASS — all 12 master GET endpoints return 200 for active school member regardless of permissions",
+      "bulk_allotments_403": "PASS",
+      "grant_then_create": "PASS — after adding 'teachers.manage', POST /teachers returns 200; POST /subjects still 403",
+      "put_school_autosync_fields": "PASS — fields persist; GET reflects new values",
+      "put_school_disable_clears_cron": "PASS — supervisor log confirms 'autosync removed job for sch_*'",
+      "autosync_run_now_super_admin": "PASS — returns {ok:true, school_id} even without eSSL device (best-effort)",
+      "autosync_run_now_perm_gate": "PASS — 403 for Viewer",
+      "confirm_all_and_notify_twilio_unset": "PASS — response twilio_configured:false, confirmed>=1, notifications[].channel='none', status='skipped'; db.substitutions row flipped to 'confirmed'",
+      "confirm_all_dry_run": "PASS — dry_run:true returned dry_run:true and the seeded 'suggested' row remained 'suggested' (no flip)",
+      "confirm_all_perm_gate": "PASS — 403 for Viewer (substitutions.manage required)",
+      "scheduler_startup": "PASS — supervisor backend.err.log shows 'APScheduler started' and 'autosync job registered for school sch_0df9200b7a @ 07:30'"
+    },
+    "frontend": {
+      "members_add_user_btn": "PASS — data-testid='new-member-btn' rendered with label 'Add User' (no 'Invite Member' anywhere)",
+      "permissions_matrix": "PASS — opens on click; headers ['RESOURCE','VIEW','MANAGE','SPECIAL ACTIONS']; matrix-row-* present for all 12 resources tested (teachers/subjects/classes/sections/facilities/activities/constraints/allotments/timetable/ai/users/attendance)",
+      "perm_checkbox_interaction": "PASS — clicking perm-attendance.view toggles checked state; counter header shows 'PERMISSION MATRIX · 1'",
+      "save_member_btn": "PASS — visible in dialog",
+      "substitutions_confirm_all_notify": "PASS — testid present; click triggers API; toast text: 'Confirmed 0 substitution(s) · Twilio not configured — notifications skipped' (confirmed=0 because earlier pytest already flipped the seeded suggested rows for today)",
+      "autosync_widget": "PASS — autosync-widget + autosync-enabled-switch + autosync-time-input + autosync-device-select + autosync-autoconfirm-switch + autosync-save-btn + autosync-run-now-btn all present; time '08:45' persists after Save→reload"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter9.py",
+    "/app/test_reports/pytest/iter9_results.xml"
+  ],
+  "action_items": [
+    "(Optional polish) Move data-testid='permissions-matrix' from the wrapping <div> onto the actual inner <table> element so the matrix wrapper itself is a real <table> per the iter-9 spec."
+  ],
+  "critical_code_review_comments": [
+    "scheduler.trigger_school_now() awaits a 4-step pipeline synchronously inside the request — for schools with many absent teachers + AI commentary this could exceed gateway timeout. Consider firing-and-forgetting via asyncio.create_task and returning 202.",
+    "confirm-all-and-notify groups by substitute_teacher_id; if `dry_run:true` is passed it still computes the message bodies but never sends — fine, but the response always returns channel='none', status='skipped' regardless of whether Twilio is configured. Consider making dry-run explicitly emit channel='dry_run' for clarity.",
+    "scheduler.register_school_job() doesn't validate auto_sync_time format and silently falls back to 07:30 on parse error; consider returning a 400 from PUT /schools/{id} when auto_sync_time is malformed.",
+    "Carry-over from iter-7/8 (still valid): perms.py email-fallback already normalizes via .lower() — good. Members.jsx upsert flow should call serialize_doc on return; ai.py auto-from-attendance had a dead `and False` (already fixed earlier per iter-8 RCA — re-verify)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter9.py"
+  ],
+  "success_rate": {"backend": "100% (120/120, includes 23 new iter-9 tests)", "frontend": "100% — all required testids present and functional"},
+  "test_credentials": "Backend: pytest uses session-scoped Super Admin via /app/backend/tests/conftest.py session_token fixture. Frontend: ephemeral mongo-injected Super Admin (cleaned up post-run).",
+  "seed_data_creation": "Used existing /api/seed/sri-ma-vidyalaya basic seed (school_id sch_0df9200b7a). Inserted/teardown one school_member doc with permissions=['audit.view'] per gating test; inserted/teardown one teacher 'TEST_GrantedT'; inserted/teardown two substitution rows with status='suggested' for today; transient teacher.phone='+919999999999' set then left in place (harmless). School auto_sync_* fields were reset after testing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Iter-9 backend & frontend fully verified. The Members page lives at /school/<sid>/users (NOT /members) — protected route from App.js line 63 `<Route path='users' element={<Members />}/>`. permissions-matrix testid is on a <div> wrapper, with the actual <table> nested inside. Auto-sync widget persistence requires explicit Save click — there is no auto-save on switch toggle. Twilio env keys in /app/backend/.env are intentionally blank; confirm-all-and-notify returns twilio_configured:false and notifications[].channel='none', status='skipped' but still flips suggested→confirmed in DB.",
+  "rca of the issue": "N/A — no critical issues found this iteration. All 4 review-request items pass end-to-end."
+}
